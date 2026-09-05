@@ -96,10 +96,12 @@ static void PrintBytesToDebug(LPSTR lpData, DWORD dataSize) {
 
 // Open Close
 decltype(&RegOpenKeyExA) RealRegOpenKeyExA = RegOpenKeyExA;
+decltype(&RegOpenKeyExW) RealRegOpenKeyExW = RegOpenKeyExW;
 decltype(&RegCloseKey) RealRegCloseKey = RegCloseKey;
 
 // Read Write
 decltype(&RegQueryValueExA) RealRegQueryValueExA = RegQueryValueExA;
+decltype(&RegQueryValueExW) RealRegQueryValueExW = RegQueryValueExW;
 decltype(&RegEnumValueA) RealRegEnumValueA = RegEnumValueA;
 decltype(&RegSetValueExA) RealRegSetValueExA = RegSetValueExA;
 decltype(&RegFlushKey) RealRegFlushKey = RegFlushKey;
@@ -363,6 +365,26 @@ LONG WINAPI FakeRegOpenKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSA
 	return ERROR_SUCCESS;
 }
 
+LONG WINAPI FakeRegOpenKeyExW(HKEY hKey, LPCWSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult)
+{
+    if (lpSubKey == nullptr)
+        return RealRegOpenKeyExW(hKey, lpSubKey, ulOptions, samDesired, phkResult);
+
+    // 寬字元轉成 ANSI，讓原本的 A 版邏輯處理
+    int len = WideCharToMultiByte(CP_ACP, 0, lpSubKey, -1, NULL, 0, NULL, NULL);
+    if (len <= 0)
+        return RealRegOpenKeyExW(hKey, lpSubKey, ulOptions, samDesired, phkResult);
+
+    std::string subKeyA(len, 0);
+    WideCharToMultiByte(CP_ACP, 0, lpSubKey, -1, &subKeyA[0], len, NULL, NULL);
+
+    // 去掉結尾的 \0
+    if (!subKeyA.empty() && subKeyA.back() == '\0')
+        subKeyA.pop_back();
+
+    return FakeRegOpenKeyExA(hKey, subKeyA.c_str(), ulOptions, samDesired, phkResult);
+}
+
 LONG WINAPI FakeRegCloseKey(HKEY hKey) {
 	if (fakeHKeyMap.find(hKey) == fakeHKeyMap.end())
 		return RealRegCloseKey(hKey);
@@ -404,6 +426,25 @@ LONG WINAPI FakeRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserv
 	OutputDebugStringA(OssFormatStringNormal("│Query key: ", lpValueName, " value: ", lpData, "(", *lpcbData, ")").c_str());
 
 	return ERROR_SUCCESS;
+}
+
+LONG WINAPI FakeRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
+{
+    if (lpValueName == nullptr)
+        return RealRegQueryValueExW(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
+
+    // 寬字元轉成 ANSI
+    int len = WideCharToMultiByte(CP_ACP, 0, lpValueName, -1, NULL, 0, NULL, NULL);
+    if (len <= 0)
+        return RealRegQueryValueExW(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
+
+    std::string valueNameA(len, 0);
+    WideCharToMultiByte(CP_ACP, 0, lpValueName, -1, &valueNameA[0], len, NULL, NULL);
+
+    if (!valueNameA.empty() && valueNameA.back() == '\0')
+        valueNameA.pop_back();
+
+    return FakeRegQueryValueExA(hKey, valueNameA.c_str(), lpReserved, lpType, lpData, lpcbData);
 }
 
 LONG WINAPI FakeRegEnumValueA(HKEY hKey, DWORD dwIndex, LPSTR lpValueName, LPDWORD lpcchValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData) {
@@ -493,8 +534,10 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		DetourUpdateThread(GetCurrentThread());
 		// 游戏所需要的基本读取
 		DetourAttach(&(PVOID&)RealRegOpenKeyExA, FakeRegOpenKeyExA);
+		DetourAttach(&(PVOID&)RealRegOpenKeyExW, FakeRegOpenKeyExW);
 		DetourAttach(&(PVOID&)RealRegCloseKey, FakeRegCloseKey);
 		DetourAttach(&(PVOID&)RealRegQueryValueExA, FakeRegQueryValueExA);
+		DetourAttach(&(PVOID&)RealRegQueryValueExW, FakeRegQueryValueExW);
 		// 部分游戏会轮询一个HKEY
 		DetourAttach(&(PVOID&)RealRegEnumValueA, FakeRegEnumValueA);
 		// 部分游戏会写入到REG
@@ -511,8 +554,10 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourDetach(&(PVOID&)RealRegOpenKeyExA, FakeRegOpenKeyExA);
+		DetourDetach(&(PVOID&)RealRegOpenKeyExW, FakeRegOpenKeyExW);
 		DetourDetach(&(PVOID&)RealRegCloseKey, FakeRegCloseKey);
 		DetourDetach(&(PVOID&)RealRegQueryValueExA, FakeRegQueryValueExA);
+		DetourDetach(&(PVOID&)RealRegQueryValueExW, FakeRegQueryValueExW);
 		DetourDetach(&(PVOID&)RealRegEnumValueA, FakeRegEnumValueA);
 		DetourDetach(&(PVOID&)RealRegSetValueExA, FakeRegSetValueExA);
 		DetourDetach(&(PVOID&)RealRegFlushKey, FakeRegFlushKey);
