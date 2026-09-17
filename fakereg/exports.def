@@ -1,19 +1,6 @@
-LIBRARY version
+LIBRARY fakereg
 EXPORTS
-GetFileVersionInfoA          = version_o.GetFileVersionInfoA
-GetFileVersionInfoByHandle   = version_o.GetFileVersionInfoByHandle
-GetFileVersionInfoExA        = version_o.GetFileVersionInfoExA
-GetFileVersionInfoExW        = version_o.GetFileVersionInfoExW
-GetFileVersionInfoSizeA      = version_o.GetFileVersionInfoSizeA
-GetFileVersionInfoSizeExA    = version_o.GetFileVersionInfoSizeExA
-GetFileVersionInfoSizeExW    = version_o.GetFileVersionInfoSizeExW
-GetFileVersionInfoSizeW      = version_o.GetFileVersionInfoSizeW
-GetFileVersionInfoW          = version_o.GetFileVersionInfoW
-VerFindFileA                 = version_o.VerFindFileA
-VerFindFileW                 = version_o.VerFindFileW
-VerInstallFileA              = version_o.VerInstallFileA
-VerInstallFileW              = version_o.VerInstallFileW
-VerLanguageNameA             = version_o.VerLanguageNameA
-VerLanguageNameW             = version_o.VerLanguageNameW
-VerQueryValueA               = version_o.VerQueryValueA
-VerQueryValueW               = version_o.VerQueryValueW
+F0
+F1
+F2
+F3
