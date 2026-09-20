@@ -1,39 +1,33 @@
 name: MSBuild
-
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-
 env:
   BUILD_CONFIGURATION: Release
-
 permissions:
   contents: read
-
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
-
     - name: Enable Developer Command Prompt (x86)
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x86
-
     - name: Build Detours
       working-directory: ${{ github.workspace }}/extern/Detours
       run: nmake /f Makefile DETOURS_TARGET_PROCESSOR=X86
-
     - name: Build fakereg
       working-directory: ${{ github.workspace }}
       run: msbuild fakereg/fakereg.vcxproj /m /p:Platform=x86 /p:Configuration=Release
-
+    - name: Build version
+      working-directory: ${{ github.workspace }}
+      run: msbuild version/version.vcxproj /m /p:Platform=x86 /p:Configuration=Release
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
@@ -41,5 +35,7 @@ jobs:
         path: |
           fakereg/**/*.dll
           fakereg/**/*.exe
+          version/**/*.dll
+          version/**/*.exe
           extern/Detours/lib.*/**
         if-no-files-found: warn
